@@ -1,0 +1,36 @@
+{
+  "private": true,
+  "name": "mzm-identicon",
+  "scripts": {
+    "prestart": "npm run build",
+    "start": "node dist/src/server.js | bunyan",
+    "build": "tsc -p tsconfig.json",
+    "cleanbuild": "rm -rf dist && tsc -p tsconfig.json",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "lint": "eslint --ext .ts,.js src",
+    "test": "jest"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "bunyan": "^1.8.12",
+    "express": "^4.17.1",
+    "helmet": "^3.21.3",
+    "identicon": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/bunyan": "^1.8.6",
+    "@types/jest": "^24.0.25",
+    "@types/node": "^13.1.2",
+    "@typescript-eslint/eslint-plugin": "^2.14.0",
+    "@typescript-eslint/parser": "^2.14.0",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-jest": "^23.2.0",
+    "eslint-plugin-prettier": "^3.1.2",
+    "jest": "^24.9.0",
+    "prettier": "^1.19.1",
+    "rmtcmd": "^0.3.0",
+    "ts-jest": "^24.2.0",
+    "typescript": "^3.8.3"
+  }
+}
