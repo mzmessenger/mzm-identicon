@@ -20,11 +20,11 @@ app.get('/', (req, res) => {
 app.get('/api/identicon/:id', (req, res) => {
   identicon
     .generate(req.params.id, 150)
-    .then(data => {
+    .then((data) => {
       res.contentType('image/png')
       res.send(data)
     })
-    .catch(err => {
+    .catch((err) => {
       logger.error('[identicon]', err)
       res.status(500).send('Internal Server Error')
     })

@@ -8,10 +8,7 @@ import { IDENTICON_CACHE_DIR } from '../config'
 const generateAsync = promisify(identicon.generate)
 
 export function getFileName(str: string, size: number) {
-  const fileName = crypto
-    .createHash('md5')
-    .update(`${str}\n${size}`)
-    .digest('hex')
+  const fileName = crypto.createHash('md5').update(`${str}\n${size}`).digest('hex')
   return `${fileName}.png`
 }
 
