@@ -1,4 +1,4 @@
-name: bump major
+name: bump version
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       version:
         description: 'patch,minor,major'
         required: true
-        default: 'patch'
+        type: choice
         options:
           - patch
           - minor
