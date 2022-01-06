@@ -24,5 +24,8 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
+    - run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
     - run: npm version ${{ github.event.inputs.version }}
     - run: git push --tags
