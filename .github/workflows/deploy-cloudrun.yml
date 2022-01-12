@@ -8,7 +8,7 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE: mzm-identicon
-  REGION: asia-east1
+  REGION: asia-northeast1
 
 jobs:
   deploy:
