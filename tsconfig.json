@@ -1,14 +1,13 @@
 {
   "compilerOptions": {
-    "incremental": true,
-    "lib": ["es2018"],
-    "outDir": "dist",
-    "sourceMap": true,
-    "noImplicitAny": false,
-    "esModuleInterop": true,
-    "module": "commonjs",
-    "target": "es2018",
-    "moduleResolution": "node"
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "exclude": ["node_modules", "**/*.test.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts"]
 }
