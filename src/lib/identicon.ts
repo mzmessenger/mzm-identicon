@@ -1,9 +1,3 @@
-/**
- * identicon@3.1.1 (Ajido/node-identicon) と互換な SVG 生成。
- * patch 配列・派生ビット・回転・配色は元実装をそのまま移植する。
- * ユーザー入力は SHA-1 計算のみに使用し、SVG 本文には埋め込まない。
- */
-
 const SIZE = 150
 
 const patch0 = [0, 4, 24, 20]
@@ -60,8 +54,7 @@ export interface IdenticonCode {
 }
 
 /**
- * SHA-1 の先頭 4byte から signed 32bit code を生成し、
- * identicon@3.1.1 と同じビット位置から各属性を派生する。
+ * SHA-1 の先頭 4byte から signed 32bit code を生成し、ビット位置から各属性を派生する。
  */
 export async function deriveCode(str: string): Promise<IdenticonCode> {
   const digest = new Uint8Array(
@@ -106,8 +99,8 @@ interface PatchPlacement {
 }
 
 /** 3x3 の各セル配置。side は上から時計回り、corner は左上から時計回り。 */
-function placements(turn: number, kind: 'side' | 'corner'): PatchPlacement[] {
-  const cell = SIZE / 3
+function placements(size: number, turn: number, kind: 'side' | 'corner'): PatchPlacement[] {
+  const cell = size / 3
   if (kind === 'side') {
     return [
       { x: cell, y: 0, turn: turn % 4 },
@@ -126,6 +119,7 @@ function placements(turn: number, kind: 'side' | 'corner'): PatchPlacement[] {
 
 /** 1つの patch を <rect> 背景 + 回転した <polygon> として SVG 断片に変換する。 */
 function patchFragment(
+  size: number,
   patch: number,
   turn: number,
   invert: boolean,
@@ -140,7 +134,7 @@ function patchFragment(
     invert = !invert
   }
   const vertices = patchTypes[patch]
-  const cell = SIZE / 3
+  const cell = size / 3
   const offset = cell / 2
   const scale = cell / 4
   const cx = x + offset
@@ -160,7 +154,7 @@ function patchFragment(
   ].join('\n')
 }
 
-/** identicon@3.1.1 と同じ配置・配色の 150x150 SVG を返す。 */
+/** 150x150 SVG を返す。 */
 export async function renderSvg(str: string, size: number = SIZE): Promise<string> {
   const code = await deriveCode(str)
   const foreColor = code.foreColor
@@ -169,16 +163,16 @@ export async function renderSvg(str: string, size: number = SIZE): Promise<strin
   const lines: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
     `  <rect width="${size}" height="${size}" fill="${backColor}"/>`,
-    patchFragment(code.middleType, 0, code.middleInvert, foreColor, backColor, cell, cell),
+    patchFragment(size, code.middleType, 0, code.middleInvert, foreColor, backColor, cell, cell),
   ]
-  for (const placement of placements(code.sideTurn, 'side')) {
+  for (const placement of placements(size, code.sideTurn, 'side')) {
     lines.push(
-      patchFragment(code.sideType, placement.turn, code.sideInvert, foreColor, backColor, placement.x, placement.y),
+      patchFragment(size, code.sideType, placement.turn, code.sideInvert, foreColor, backColor, placement.x, placement.y),
     )
   }
-  for (const placement of placements(code.cornerTurn, 'corner')) {
+  for (const placement of placements(size, code.cornerTurn, 'corner')) {
     lines.push(
-      patchFragment(code.cornerType, placement.turn, code.cornerInvert, foreColor, backColor, placement.x, placement.y),
+      patchFragment(size, code.cornerType, placement.turn, code.cornerInvert, foreColor, backColor, placement.x, placement.y),
     )
   }
   lines.push('</svg>')

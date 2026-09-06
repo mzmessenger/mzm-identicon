@@ -6,12 +6,17 @@ const SVG_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
 }
 
-function text(status: number, body: string): Response {
+function text(
+  status: number,
+  body: string,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(body, {
     status,
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
       'X-Content-Type-Options': 'nosniff',
+      ...extraHeaders,
     },
   })
 }
@@ -20,7 +25,7 @@ export default {
   async fetch(request: Request, _env?: unknown, _ctx?: unknown): Promise<Response> {
     const url = new URL(request.url)
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-      return text(405, 'Method Not Allowed')
+      return text(405, 'Method Not Allowed', { Allow: 'GET, HEAD' })
     }
     if (url.pathname === '/') {
       return text(200, 'identicon')

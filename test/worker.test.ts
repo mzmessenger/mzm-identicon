@@ -127,6 +127,13 @@ describe('renderSvg', () => {
     expect(svg.match(/<polygon /g)).toHaveLength(9)
   })
 
+  it('可変サイズでもSVGの寸法とpatch数が一致する', async () => {
+    const svg = await renderSvg('koh110', 90)
+    expect(svg).toContain('width="90"')
+    expect(svg).toContain('height="90"')
+    expect(svg.match(/<polygon /g)).toHaveLength(9)
+  })
+
   it('背景は白で前景色は派生色を使う', async () => {
     const svg = await renderSvg('koh110')
     expect(svg).toContain('fill="rgb(255,255,255)"')
@@ -165,6 +172,7 @@ describe('API', () => {
   it('GET以外は405を返す', async () => {
     const res = await worker.fetch(new Request('https://identicon.mzm.dev/', { method: 'POST' }))
     expect(res.status).toBe(405)
+    expect(res.headers.get('allow')).toBe('GET, HEAD')
   })
 
   it('不正なpercent encodingは400を返す', async () => {

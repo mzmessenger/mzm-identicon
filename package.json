@@ -8,11 +8,14 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "vitest run",
-    "lint": "tsc --noEmit",
+    "prelint": "tsc --noEmit",
+    "lint": "vp lint src",
+    "lint-fix": "vp lint src --fix",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
+    "vite-plus": "^0.3.0",
     "vitest": "^3.2.4",
     "wrangler": "^4.25.2"
   }
