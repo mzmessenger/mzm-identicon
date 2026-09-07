@@ -3,5 +3,11 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mzm-identicon",
   "main": "src/index.ts",
-  "compatibility_date": "2026-09-05"
+  "compatibility_date": "2026-09-05",
+  "routes": [
+    {
+      "pattern": "identicon.mzm.dev",
+      "custom_domain": true
+    }
+  ]
 }
