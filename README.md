@@ -1,10 +1,13 @@
-# development
+# mzm-identicon
 
-```bash
-$ docker build -f Dockerfile -t mzm-identicon .
-$ docker run --init --rm -it mzm-identicon
+Identicon 生成サービス
+
+## development
+
+```sh
+npm install
+npm run dev        # wrangler dev（ローカル）
+npm test           # Vitest
+npm run typecheck  # tsc --noEmit
+npm run deploy     # wrangler deploy
 ```
-
-# CD
-
-https://github.com/google-github-actions/deploy-cloudrun
