@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "node scripts/deploy.ts deploy",
+    "deploy:dry-run": "node scripts/deploy.ts dry-run",
+    "test:deploy": "MZM_RUN_DEPLOY_INTEGRATION=1 vitest run test/deploy.test.ts",
     "test": "vitest run",
     "prelint": "tsc --noEmit",
     "lint": "vp lint src",
@@ -14,9 +16,10 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
     "typescript": "^5.8.3",
-    "vite-plus": "^0.3.0",
-    "vitest": "^3.2.4",
-    "wrangler": "^4.25.2"
+    "vite-plus": "^1.7.0",
+    "vitest": "^5.1.1",
+    "wrangler": "4.166.0"
   }
 }
