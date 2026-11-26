@@ -796,12 +796,18 @@ async function runCommand(
   const stderrChunks: Buffer[] = [];
   let abortListener: (() => void) | undefined;
 
-  const child = spawn(command, args, {
-    cwd: REPOSITORY_ROOT,
-    detached: true,
-    env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const previousUmask = process.umask(0o077);
+  let child: ReturnType<typeof spawn>;
+  try {
+    child = spawn(command, args, {
+      cwd: REPOSITORY_ROOT,
+      detached: true,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } finally {
+    process.umask(previousUmask);
+  }
   const closePromise = new Promise<CommandResult>((resolvePromise) => {
     finalize = resolvePromise;
   });
@@ -1202,12 +1208,14 @@ export function parseStructuredOutput(text: string): JsonObject[] {
   for (const record of records.filter((entry) => entry.type === "wrangler-session")) {
     assertAllowedKeys(
       record,
-      ["type", "version", "wrangler_version", "command_line_args", "log_file_path"],
+      ["type", "version", "wrangler_version", "command_line_args", "log_file_path", "timestamp"],
       "Wrangler session output",
     );
     if (
       record.version !== 1 ||
       typeof record.wrangler_version !== "string" ||
+      typeof record.timestamp !== "string" ||
+      !Number.isFinite(Date.parse(record.timestamp)) ||
       !Array.isArray(record.command_line_args) ||
       !record.command_line_args.every((argument) => typeof argument === "string") ||
       (record.log_file_path !== undefined &&

@@ -399,12 +399,17 @@ describe("pinned Wrangler invocation guards", () => {
       wrangler_version: "4.166.0",
       command_line_args: ["versions", "upload"],
       log_file_path: null,
+      timestamp: "2026-11-26T13:05:20.000Z",
     };
     const upload = {
       type: "version-upload",
       version: 1,
       worker_name: "mzm-identicon",
+      worker_tag: null,
       version_id: null,
+      worker_name_overridden: false,
+      bundle_size: { raw_bytes: 2048, gzip_bytes: 512 },
+      timestamp: "2026-11-26T13:05:20.000Z",
     };
     expect(
       parseStructuredOutput(`${JSON.stringify(session)}\n${JSON.stringify(upload)}\n`),
@@ -412,6 +417,9 @@ describe("pinned Wrangler invocation guards", () => {
     expect(() =>
       parseStructuredOutput(`${JSON.stringify({ ...session, unrecognized: true })}\n`),
     ).toThrow(/unknown structured-output field/i);
+    expect(() =>
+      parseStructuredOutput(`${JSON.stringify({ ...session, timestamp: "not-a-timestamp" })}\n`),
+    ).toThrow(/unsupported schema/i);
   });
 
   it("requires the exact pinned Wrangler version rather than a matching substring", () => {
