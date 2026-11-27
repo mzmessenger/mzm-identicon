@@ -9,6 +9,7 @@
     "deploy": "node scripts/deploy.ts deploy",
     "deploy:dry-run": "node scripts/deploy.ts dry-run",
     "test:deploy": "MZM_RUN_DEPLOY_INTEGRATION=1 vitest run test/deploy.test.ts",
+    "format": "prettier --write src scripts test vitest.config.ts wrangler.jsonc package.json package-lock.json tsconfig.json",
     "test": "vitest run",
     "prelint": "tsc --noEmit",
     "lint": "vp lint src",
@@ -17,6 +18,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "prettier": "^3.10.1",
     "typescript": "^5.8.3",
     "vite-plus": "^1.7.0",
     "vitest": "^5.1.1",
