@@ -13,9 +13,9 @@ npm run typecheck  # tsc --noEmit
 
 ## Production deployment
 
-Production deploys must run from a clean `verify/<release>` checkout. The checked-in route-bearing config is never passed directly to Wrangler; the repository wrapper creates a private route-free config, keeps remote variables, uploads and verifies the exact release SHA (including the marker binding), then explicitly promotes that Version to 100% traffic. Before upload, before promotion, and after deployment it read-backs the selected account, Worker, Custom Domain, exposure settings, overlapping routes, relevant DNS records, and Worker secret names; it refuses any mismatch or change.
+Production deploys must run from a clean `verify/<release>` checkout. The checked-in route-bearing config is never passed directly to Wrangler; the repository wrapper creates a private route-free config, keeps remote variables, uploads and verifies the exact release SHA (including the marker binding), then explicitly promotes that Version to 100% traffic. Before upload, before promotion, and after deployment it read-backs the selected account, Worker, Custom Domain, exposure settings, and Worker secret names; it refuses any mismatch or change. Zone Routes and DNS are not read: the version-only route-free upload/promotion flow does not modify them, and the wrapper reports that inventory as `not-read` rather than claiming it is unchanged.
 
-The production wrapper performs authenticated read-only API checks before upload, before promotion, and after deployment, including the account/zone match and disabled exposure settings. Set `CLOUDFLARE_ACCOUNT_ID` from the intended account's preflight. For the credential-free local dry-run only, provide the observed disabled exposure flags. Then run:
+The production wrapper performs authenticated read-only API checks before upload, before promotion, and after deployment, including the account/zone match, Worker Custom Domain, disabled exposure settings, and secret-name collision check. Set `CLOUDFLARE_ACCOUNT_ID` from the intended account's preflight. For the credential-free local dry-run only, provide the observed disabled exposure flags. Then run:
 
 ```sh
 CLOUDFLARE_ACCOUNT_ID=<verified-account-id> MZM_IDENTICON_PREFLIGHT_WORKERS_DEV=false MZM_IDENTICON_PREFLIGHT_PREVIEW_URLS=false npm run deploy:dry-run

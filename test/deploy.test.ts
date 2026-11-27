@@ -41,10 +41,7 @@ type PreflightOptions = {
   domainEnvironment?: string;
   domainEnabled?: boolean;
   domainPreviewsEnabled?: boolean;
-  routePattern?: string;
-  routeScript?: string | null;
   duplicateZonePage?: boolean;
-  dnsRecordOverride?: Record<string, unknown>;
 };
 
 function cloudflareFetcher(options: PreflightOptions = {}): typeof fetch {
@@ -128,35 +125,6 @@ function cloudflareFetcher(options: PreflightOptions = {}): typeof fetch {
           result: [{ name: options.secretName ?? "EXISTING_SECRET", type: "secret_text" }],
         };
         break;
-      case `/client/v4/zones/${zoneId}/workers/routes`:
-        body = {
-          success: true,
-          result: [
-            {
-              id: "route-id",
-              pattern: options.routePattern ?? "identicon.mzm.dev/*",
-              script: options.routeScript === undefined ? "mzm-identicon" : options.routeScript,
-            },
-          ],
-        };
-        break;
-      case `/client/v4/zones/${zoneId}/dns_records`:
-        body = paginated(
-          url.searchParams.get("name") === "identicon.mzm.dev"
-            ? [
-                {
-                  id: "dns-id",
-                  name: "identicon.mzm.dev",
-                  type: "CNAME",
-                  content: "mzm.dev",
-                  proxied: true,
-                  ttl: 1,
-                  ...options.dnsRecordOverride,
-                },
-              ]
-            : [],
-        );
-        break;
       default:
         throw new Error(`unexpected API path: ${url.pathname}`);
     }
@@ -239,7 +207,7 @@ describe("route-free deploy configuration", () => {
 });
 
 describe("Cloudflare production preflight", () => {
-  it("binds the live zone, Custom Domain, disabled exposure, routes, DNS, and secret names to the target", async () => {
+  it("binds the live zone, Custom Domain, disabled exposure, and secret names to the target", async () => {
     const state = await readCloudflareTargetState(accountId, "fixture-token", cloudflareFetcher());
 
     expect(state).toMatchObject({
@@ -252,17 +220,32 @@ describe("Cloudflare production preflight", () => {
         hostname: "identicon.mzm.dev",
         service: "mzm-identicon",
       },
+      routeDnsReadback: "not-read",
       secretNames: ["EXISTING_SECRET"],
     });
-    expect(state.routePagination).toBe("unavailable-by-api");
-    expect(state.secretPagination).toBe("unavailable-by-api");
-    expect(state.routes).toHaveLength(1);
-    expect(state.dnsRecords).toHaveLength(1);
-    expect(state.wildcardDnsRecords).toHaveLength(0);
     expect(() => assertCloudflareTargetStateUnchanged(state, state, "after upload")).not.toThrow();
     expect(() =>
-      assertCloudflareTargetStateUnchanged(state, { ...state, dnsRecords: [] }, "after upload"),
+      assertCloudflareTargetStateUnchanged(
+        state,
+        { ...state, customDomain: { ...state.customDomain, enabled: false } },
+        "after upload",
+      ),
     ).toThrow(/changed/i);
+  });
+
+  it("does not require zone-route or DNS read permissions for a version-only preflight", async () => {
+    const requestedPaths: string[] = [];
+    const baseFetcher = cloudflareFetcher();
+    const fetcher: typeof fetch = async (input, init) => {
+      requestedPaths.push(new URL(String(input)).pathname);
+      return baseFetcher(input, init);
+    };
+
+    const state = await readCloudflareTargetState(accountId, "fixture-token", fetcher);
+
+    expect(state).toHaveProperty("routeDnsReadback", "not-read");
+    expect(requestedPaths).not.toContain(`/client/v4/zones/${zoneId}/workers/routes`);
+    expect(requestedPaths).not.toContain(`/client/v4/zones/${zoneId}/dns_records`);
   });
 
   it("refuses a zone owned by a different account", async () => {
@@ -285,19 +268,6 @@ describe("Cloudflare production preflight", () => {
     ).rejects.toThrow(/duplicate record identity/i);
   });
 
-  it("rejects a scheme-bearing wildcard route that overlaps the target host", async () => {
-    await expect(
-      readCloudflareTargetState(
-        accountId,
-        "fixture-token",
-        cloudflareFetcher({
-          routePattern: "https://*.mzm.dev/*",
-          routeScript: "another-worker",
-        }),
-      ),
-    ).rejects.toThrow(/overlapping route/i);
-  });
-
   it("rejects a production domain with wrong environment or preview exposure", async () => {
     await expect(
       readCloudflareTargetState(
@@ -313,16 +283,6 @@ describe("Cloudflare production preflight", () => {
         cloudflareFetcher({ domainPreviewsEnabled: true }),
       ),
     ).rejects.toThrow(/production Worker/i);
-  });
-
-  it("rejects missing DNS fields instead of normalizing them to null", async () => {
-    await expect(
-      readCloudflareTargetState(
-        accountId,
-        "fixture-token",
-        cloudflareFetcher({ dnsRecordOverride: { proxied: undefined } }),
-      ),
-    ).rejects.toThrow(/required routing fields/i);
   });
 
   it("refuses enabled exposure or a release-marker secret collision", async () => {

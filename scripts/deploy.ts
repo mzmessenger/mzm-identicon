@@ -1326,11 +1326,8 @@ type CloudflareTargetState = {
   workersDevEnabled: false;
   previewUrlsEnabled: false;
   customDomain: JsonObject;
-  routes: JsonObject[];
-  dnsRecords: JsonObject[];
-  wildcardDnsRecords: JsonObject[];
+  routeDnsReadback: "not-read";
   secretNames: string[];
-  routePagination: "available" | "unavailable-by-api";
   secretPagination: "available" | "unavailable-by-api";
   readbacks: JsonObject;
 };
@@ -1772,77 +1769,12 @@ function normalizedCloudflareEnvelope(payload: JsonObject, redactSecretValues = 
   return normalized;
 }
 
-function normalizedRecords(records: JsonObject[]): JsonObject[] {
-  return records
-    .map((record) => canonicalizeJson(record) as JsonObject)
-    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
-}
-
 function requireStringField(record: JsonObject, field: string, label: string): string {
   const value = record[field];
   if (typeof value !== "string" || value.length === 0) {
     fail(`Cloudflare ${label} read-back is missing ${field}`);
   }
   return value;
-}
-
-function routeHostname(pattern: string): string {
-  const normalized = pattern.trim().toLowerCase();
-  if (normalized.length === 0 || normalized.includes("#")) {
-    fail("Cloudflare zone route read-back contained an invalid pattern");
-  }
-  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(normalized);
-  if (scheme && scheme[1] !== "http" && scheme[1] !== "https") {
-    fail("Cloudflare zone route read-back contained an unsupported URL scheme");
-  }
-  const remainder = scheme ? normalized.slice(scheme[0].length) : normalized;
-  const authority = remainder.split(/[/?#]/, 1)[0];
-  if (!authority || authority.includes("@") || authority.startsWith("[")) {
-    fail("Cloudflare zone route read-back contained an invalid hostname");
-  }
-  const hostname = authority.replace(/:\d+$/, "").replace(/\.$/, "");
-  if (
-    hostname.length === 0 ||
-    (hostname !== "*" && hostname.includes("*") && !/^\*\.[a-z0-9.-]+$/.test(hostname)) ||
-    hostname.split(".").some((label) => label.length === 0)
-  ) {
-    fail("Cloudflare zone route read-back contained an unsupported wildcard hostname");
-  }
-  return hostname;
-}
-
-function routeOverlapsHostname(routeHost: string, hostname: string): boolean {
-  if (routeHost === "*" || routeHost === hostname) return true;
-  if (!routeHost.startsWith("*.")) return false;
-  const suffix = routeHost.slice(2);
-  return hostname !== suffix && hostname.endsWith(`.${suffix}`);
-}
-
-function validateDnsRecord(
-  record: JsonObject,
-  expectedName: string,
-  requireRoutingRecord = false,
-): void {
-  requireStringField(record, "id", "DNS");
-  if (requireStringField(record, "name", "DNS") !== expectedName) {
-    fail(`Cloudflare DNS read-back returned a record outside ${expectedName}`);
-  }
-  const type = requireStringField(record, "type", "DNS").toUpperCase();
-  if (requireRoutingRecord && !["A", "AAAA", "CNAME"].includes(type)) {
-    fail(`Cloudflare DNS read-back returned an unsupported ${type} record for ${expectedName}`);
-  }
-  requireStringField(record, "content", "DNS");
-  if (
-    typeof record.proxied !== "boolean" ||
-    typeof record.ttl !== "number" ||
-    !Number.isSafeInteger(record.ttl) ||
-    record.ttl < 1
-  ) {
-    fail(`Cloudflare DNS read-back is missing required routing fields for ${expectedName}`);
-  }
-  if (requireRoutingRecord && record.proxied !== true) {
-    fail(`Cloudflare target DNS record is not proxied for ${expectedName}`);
-  }
 }
 
 export async function readCloudflareTargetState(
@@ -1968,56 +1900,11 @@ export async function readCloudflareTargetState(
   }
   secretNames.sort();
 
-  const routeResult = await cloudflareListWithOptionalPagination(
-    cloudflareUrl(`/zones/${encodeURIComponent(zoneId)}/workers/routes`),
-    apiToken,
-    fetcher,
-    "zone route",
-    context,
-  );
-  readbacks.zoneRoutes = routeResult.readbacks;
-  for (const route of routeResult.records) {
-    const pattern = requireStringField(route, "pattern", "zone route");
-    const host = routeHostname(pattern);
-    if (route.script !== undefined && route.script !== null && typeof route.script !== "string") {
-      fail("Cloudflare zone route read-back contained a malformed record");
-    }
-    if (routeOverlapsHostname(host, EXPECTED_HOSTNAME)) {
-      if (route.script !== EXPECTED_WORKER) {
-        fail("Cloudflare has an overlapping route that is not mapped to the expected Worker");
-      }
-    }
-  }
+  readbacks.routeDns = {
+    status: "not-read",
+    reason: "route-free version upload and promotion do not modify zone routes or DNS records",
+  };
 
-  const exactDnsReadback = await cloudflarePages(
-    cloudflareUrl(`/zones/${encodeURIComponent(zoneId)}/dns_records`, { name: EXPECTED_HOSTNAME }),
-    apiToken,
-    fetcher,
-    "exact-host DNS",
-    undefined,
-    context,
-  );
-  const dnsRecords = exactDnsReadback.records;
-  readbacks.exactDns = exactDnsReadback.readbacks;
-  const wildcardDnsReadback = await cloudflarePages(
-    cloudflareUrl(`/zones/${encodeURIComponent(zoneId)}/dns_records`, {
-      name: `*.${EXPECTED_ZONE}`,
-    }),
-    apiToken,
-    fetcher,
-    "wildcard DNS",
-    undefined,
-    context,
-  );
-  const wildcardDnsRecords = wildcardDnsReadback.records;
-  readbacks.wildcardDns = wildcardDnsReadback.readbacks;
-  for (const record of dnsRecords) validateDnsRecord(record, EXPECTED_HOSTNAME, true);
-  for (const record of wildcardDnsRecords) {
-    validateDnsRecord(record, `*.${EXPECTED_ZONE}`);
-  }
-  if (dnsRecords.length !== 1) {
-    fail("Cloudflare preflight requires exactly one proxied DNS record for the target hostname");
-  }
   const state: CloudflareTargetState = {
     accountId,
     zoneId,
@@ -2025,11 +1912,8 @@ export async function readCloudflareTargetState(
     workersDevEnabled: false,
     previewUrlsEnabled: false,
     customDomain: canonicalizeJson(domain) as JsonObject,
-    routes: normalizedRecords(routeResult.records),
-    dnsRecords: normalizedRecords(dnsRecords),
-    wildcardDnsRecords: normalizedRecords(wildcardDnsRecords),
+    routeDnsReadback: "not-read",
     secretNames,
-    routePagination: routeResult.pagination,
     secretPagination: secretResult.pagination,
     readbacks: canonicalizeJson(readbacks) as JsonObject,
   };
@@ -2047,7 +1931,7 @@ export function assertCloudflareTargetStateUnchanged(
   phase: string,
 ): void {
   if (JSON.stringify(expected) !== JSON.stringify(actual)) {
-    fail(`Cloudflare domain, route/DNS, exposure, or Worker secret state changed ${phase}`);
+    fail(`Cloudflare account, Custom Domain, exposure, or Worker secret state changed ${phase}`);
   }
 }
 
@@ -2360,7 +2244,7 @@ async function runDeployment(
         "after version promotion",
       );
       console.log(
-        `Cloudflare active deployment confirmed: ${uploadedVersionId} at 100% for ${initialCheckout.sha}; exposure, Custom Domain, routes, DNS, and Worker secret names are unchanged`,
+        `Cloudflare active deployment confirmed: ${uploadedVersionId} at 100% for ${initialCheckout.sha}; account, exposure, Custom Domain, and Worker secret names are read back unchanged. Zone routes and DNS were not read; this route-free Version-only flow does not modify them`,
       );
     }
   } catch (error) {
@@ -2399,7 +2283,7 @@ function showHelp(): void {
 Production and dry-run commands use the same private route-free Wrangler config.
 Required for both modes: CLOUDFLARE_ACCOUNT_ID for the intended target account.
 Dry-run only: preflight flags confirming both exposure modes are disabled.
-Production only: CLOUDFLARE_API_TOKEN injected by op run; the wrapper performs live read-only account, domain, exposure, routes, DNS, and Worker secret-name checks before upload and promotion, then verifies those settings are unchanged.
+Production only: CLOUDFLARE_API_TOKEN injected by op run; the wrapper reads the target account, Custom Domain, exposure, and Worker secret names before upload/promotion, then verifies those same fields remain unchanged. Zone routes and DNS are not read because the private route-free Version-only flow does not modify them.
 
 The command requires a clean verify/<release> branch and an exact repository-pinned Wrangler version. It promotes the uploaded Version explicitly at 100% traffic and then reads Cloudflare's active Deployment back before returning success.`);
 }
