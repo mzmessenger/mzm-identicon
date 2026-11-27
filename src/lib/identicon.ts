@@ -32,7 +32,7 @@ const patchTypes = [
   patch12,
   patch13,
   patch14,
-  patch0,
+  patch0
 ]
 
 const centerPatchTypes = [0, 4, 8, 15]
@@ -58,11 +58,12 @@ export interface IdenticonCode {
  */
 export async function deriveCode(str: string): Promise<IdenticonCode> {
   const digest = new Uint8Array(
-    await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str)),
+    await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str))
   )
   // 元実装は 8bit 文字列の charCodeAt を用いるため、
   // 2 の補数符号付き 32bit 整数として解釈する。
-  const code = ((digest[0] << 24) | (digest[1] << 16) | (digest[2] << 8) | digest[3]) | 0
+  const code =
+    (digest[0] << 24) | (digest[1] << 16) | (digest[2] << 8) | digest[3] | 0
   const middleType = centerPatchTypes[code & 3]
   const middleInvert = ((code >> 2) & 1) !== 0
   const cornerType = (code >> 3) & 15
@@ -88,7 +89,7 @@ export async function deriveCode(str: string): Promise<IdenticonCode> {
     red,
     green,
     blue,
-    foreColor,
+    foreColor
   }
 }
 
@@ -99,21 +100,25 @@ interface PatchPlacement {
 }
 
 /** 3x3 の各セル配置。side は上から時計回り、corner は左上から時計回り。 */
-function placements(size: number, turn: number, kind: 'side' | 'corner'): PatchPlacement[] {
+function placements(
+  size: number,
+  turn: number,
+  kind: 'side' | 'corner'
+): PatchPlacement[] {
   const cell = size / 3
   if (kind === 'side') {
     return [
       { x: cell, y: 0, turn: turn % 4 },
       { x: cell * 2, y: cell, turn: (turn + 1) % 4 },
       { x: cell, y: cell * 2, turn: (turn + 2) % 4 },
-      { x: 0, y: cell, turn: (turn + 3) % 4 },
+      { x: 0, y: cell, turn: (turn + 3) % 4 }
     ]
   }
   return [
     { x: 0, y: 0, turn: turn % 4 },
     { x: cell * 2, y: 0, turn: (turn + 1) % 4 },
     { x: cell * 2, y: cell * 2, turn: (turn + 2) % 4 },
-    { x: 0, y: cell * 2, turn: (turn + 3) % 4 },
+    { x: 0, y: cell * 2, turn: (turn + 3) % 4 }
   ]
 }
 
@@ -126,7 +131,7 @@ function patchFragment(
   foreColor: string,
   backColor: string,
   x: number,
-  y: number,
+  y: number
 ): string {
   patch %= patchTypes.length
   turn %= 4
@@ -150,12 +155,15 @@ function patchFragment(
   const fgFill = invert ? backColor : foreColor
   return [
     `  <rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${bgFill}"/>`,
-    `  <polygon points="${points}" fill="${fgFill}" transform="rotate(${turn * 90} ${cx} ${cy})"/>`,
+    `  <polygon points="${points}" fill="${fgFill}" transform="rotate(${turn * 90} ${cx} ${cy})"/>`
   ].join('\n')
 }
 
 /** 150x150 SVG を返す。 */
-export async function renderSvg(str: string, size: number = SIZE): Promise<string> {
+export async function renderSvg(
+  str: string,
+  size: number = SIZE
+): Promise<string> {
   const code = await deriveCode(str)
   const foreColor = code.foreColor
   const backColor = 'rgb(255,255,255)'
@@ -163,16 +171,43 @@ export async function renderSvg(str: string, size: number = SIZE): Promise<strin
   const lines: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
     `  <rect width="${size}" height="${size}" fill="${backColor}"/>`,
-    patchFragment(size, code.middleType, 0, code.middleInvert, foreColor, backColor, cell, cell),
+    patchFragment(
+      size,
+      code.middleType,
+      0,
+      code.middleInvert,
+      foreColor,
+      backColor,
+      cell,
+      cell
+    )
   ]
   for (const placement of placements(size, code.sideTurn, 'side')) {
     lines.push(
-      patchFragment(size, code.sideType, placement.turn, code.sideInvert, foreColor, backColor, placement.x, placement.y),
+      patchFragment(
+        size,
+        code.sideType,
+        placement.turn,
+        code.sideInvert,
+        foreColor,
+        backColor,
+        placement.x,
+        placement.y
+      )
     )
   }
   for (const placement of placements(size, code.cornerTurn, 'corner')) {
     lines.push(
-      patchFragment(size, code.cornerType, placement.turn, code.cornerInvert, foreColor, backColor, placement.x, placement.y),
+      patchFragment(
+        size,
+        code.cornerType,
+        placement.turn,
+        code.cornerInvert,
+        foreColor,
+        backColor,
+        placement.x,
+        placement.y
+      )
     )
   }
   lines.push('</svg>')

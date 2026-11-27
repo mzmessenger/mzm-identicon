@@ -5,7 +5,7 @@ async function get(path: string) {
   return worker.fetch(new Request(`https://identicon.mzm.dev${path}`))
 }
 
-// identicon@3.1.1 実装で実測した期待値（SHA-1 先頭4byte・code・派生ビット・前景色）
+// identicon version 3.1.1 実装で実測した期待値（SHA-1 先頭4byte・code・派生ビット・前景色）
 const REFERENCE = [
   {
     id: 'koh110',
@@ -18,7 +18,7 @@ const REFERENCE = [
     sideType: 0,
     sideInvert: true,
     sideTurn: 3,
-    foreColor: 'rgb(128,176,56)',
+    foreColor: 'rgb(128,176,56)'
   },
   {
     id: 'test',
@@ -31,7 +31,7 @@ const REFERENCE = [
     sideType: 3,
     sideInvert: false,
     sideTurn: 1,
-    foreColor: 'rgb(168,80,80)',
+    foreColor: 'rgb(168,80,80)'
   },
   {
     id: 'user1',
@@ -44,7 +44,7 @@ const REFERENCE = [
     sideType: 9,
     sideInvert: false,
     sideTurn: 1,
-    foreColor: 'rgb(176,240,208)',
+    foreColor: 'rgb(176,240,208)'
   },
   {
     id: 'alice',
@@ -57,7 +57,7 @@ const REFERENCE = [
     sideType: 9,
     sideInvert: false,
     sideTurn: 2,
-    foreColor: 'rgb(80,136,88)',
+    foreColor: 'rgb(80,136,88)'
   },
   {
     id: 'bob',
@@ -70,7 +70,7 @@ const REFERENCE = [
     sideType: 6,
     sideInvert: false,
     sideTurn: 0,
-    foreColor: 'rgb(72,0,192)',
+    foreColor: 'rgb(72,0,192)'
   },
   {
     id: '123456',
@@ -83,11 +83,11 @@ const REFERENCE = [
     sideType: 3,
     sideInvert: false,
     sideTurn: 1,
-    foreColor: 'rgb(120,16,80)',
-  },
+    foreColor: 'rgb(120,16,80)'
+  }
 ]
 
-describe('deriveCode (identicon@3.1.1 互換)', () => {
+describe('deriveCode (identicon version 3.1.1 互換)', () => {
   for (const ref of REFERENCE) {
     it(`seed "${ref.id}"`, async () => {
       const code = await deriveCode(ref.id)
@@ -149,11 +149,21 @@ describe('API', () => {
     expect(await res.text()).toBe('identicon')
   })
 
+  it('設定されたrelease SHAを識別用response headerに返す', async () => {
+    const sha = 'a'.repeat(40)
+    const res = await worker.fetch(new Request('https://identicon.mzm.dev/'), {
+      MZM_IDENTICON_RELEASE_SHA: sha
+    })
+    expect(res.headers.get('x-mzm-identicon-release')).toBe(sha)
+  })
+
   it('GET /api/identicon/koh110 は 200 SVG + キャッシュ・nosniff headers', async () => {
     const res = await get('/api/identicon/koh110')
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/svg+xml; charset=utf-8')
-    expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=31536000, immutable'
+    )
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
     expect(await res.text()).toContain('<svg')
   })
@@ -170,7 +180,9 @@ describe('API', () => {
   })
 
   it('GET以外は405を返す', async () => {
-    const res = await worker.fetch(new Request('https://identicon.mzm.dev/', { method: 'POST' }))
+    const res = await worker.fetch(
+      new Request('https://identicon.mzm.dev/', { method: 'POST' })
+    )
     expect(res.status).toBe(405)
     expect(res.headers.get('allow')).toBe('GET, HEAD')
   })
